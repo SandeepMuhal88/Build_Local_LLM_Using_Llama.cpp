@@ -1,0 +1,5 @@
+package com.localllm.local_llm_assistant
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()

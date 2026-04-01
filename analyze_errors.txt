@@ -1,0 +1,37 @@
+﻿  error - The argument type 'CardTheme' can't be assigned to the parameter type 'CardThemeData?'.  - lib\core\theme\app_theme.dart:103:18 - argument_type_not_assignable
+  error - Target of URI doesn't exist: '../models/chat_message.dart' - lib\presentation\providers\app_provider.dart:4:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../models/chat_session.dart' - lib\presentation\providers\app_provider.dart:5:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../models/model_info.dart' - lib\presentation\providers\app_provider.dart:6:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../services/llm_service.dart' - lib\presentation\providers\app_provider.dart:7:8 - uri_does_not_exist
+  error - Target of URI doesn't exist: '../services/model_service.dart' - lib\presentation\providers\app_provider.dart:8:8 - uri_does_not_exist
+  error - Undefined class 'LlmService' - lib\presentation\providers\app_provider.dart:12:9 - undefined_class
+  error - The method 'LlmService' isn't defined for the type 'AppProvider' - lib\presentation\providers\app_provider.dart:12:34 - undefined_method
+  error - Undefined class 'ModelService' - lib\presentation\providers\app_provider.dart:13:9 - undefined_class
+  error - The method 'ModelService' isn't defined for the type 'AppProvider' - lib\presentation\providers\app_provider.dart:13:38 - undefined_method
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:16:8 - non_type_as_type_argument
+  error - Undefined class 'ChatSession' - lib\presentation\providers\app_provider.dart:17:3 - undefined_class
+  error - The name 'ModelInfo' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:18:8 - non_type_as_type_argument
+  error - Undefined class 'ModelInfo' - lib\presentation\providers\app_provider.dart:19:3 - undefined_class
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:37:8 - non_type_as_type_argument
+  error - Undefined class 'ChatSession' - lib\presentation\providers\app_provider.dart:38:3 - undefined_class
+  error - The name 'ModelInfo' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:39:8 - non_type_as_type_argument
+  error - Undefined class 'ModelInfo' - lib\presentation\providers\app_provider.dart:40:3 - undefined_class
+  error - Undefined class 'LlmStatus' - lib\presentation\providers\app_provider.dart:45:3 - undefined_class
+  error - Undefined class 'ModelInfo' - lib\presentation\providers\app_provider.dart:88:26 - undefined_class
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:122:26 - non_type_as_type_argument
+  error - The property 'updatedAt' can't be unconditionally accessed because the receiver can be 'null' - lib\presentation\providers\app_provider.dart:124:26 - unchecked_use_of_nullable_value
+  error - The property 'updatedAt' can't be unconditionally accessed because the receiver can be 'null' - lib\presentation\providers\app_provider.dart:124:48 - unchecked_use_of_nullable_value
+  error - The method 'ChatSession' isn't defined for the type 'AppProvider' - lib\presentation\providers\app_provider.dart:128:21 - undefined_method
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:129:26 - non_type_as_type_argument
+  error - Undefined class 'ChatSession' - lib\presentation\providers\app_provider.dart:136:22 - undefined_class
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:143:26 - non_type_as_type_argument
+  error - The property 'id' can't be unconditionally accessed because the receiver can be 'null' - lib\presentation\providers\app_provider.dart:145:36 - unchecked_use_of_nullable_value
+  error - The method 'ChatMessage' isn't defined for the type 'AppProvider' - lib\presentation\providers\app_provider.dart:167:25 - undefined_method
+  error - Undefined name 'MessageRole' - lib\presentation\providers\app_provider.dart:169:13 - undefined_identifier
+  error - The method 'ChatMessage' isn't defined for the type 'AppProvider' - lib\presentation\providers\app_provider.dart:206:25 - undefined_method
+  error - Undefined name 'MessageRole' - lib\presentation\providers\app_provider.dart:208:15 - undefined_identifier
+  error - The name 'ChatSession' isn't a type, so it can't be used as a type argument - lib\presentation\providers\app_provider.dart:227:26 - non_type_as_type_argument
+  error - The property 'updatedAt' can't be unconditionally accessed because the receiver can be 'null' - lib\presentation\providers\app_provider.dart:230:26 - unchecked_use_of_nullable_value
+  error - The property 'updatedAt' can't be unconditionally accessed because the receiver can be 'null' - lib\presentation\providers\app_provider.dart:230:48 - unchecked_use_of_nullable_value
+warning - The value of the local variable 'homeState' isn't used - lib\presentation\screens\chat_screen.dart:189:15 - unused_local_variable
+warning - Unused import: 'dart:io' - lib\presentation\screens\models_screen.dart:1:8 - unused_import

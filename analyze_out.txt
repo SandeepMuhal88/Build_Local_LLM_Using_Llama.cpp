@@ -1,0 +1,9 @@
+Analyzing lib...                                                
+
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\history_screen.dart:52:11 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\settings_screen.dart:48:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\settings_screen.dart:53:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\settings_screen.dart:60:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\settings_screen.dart:67:15 - prefer_const_constructors
+   info - Use 'const' with the constructor to improve performance - lib\presentation\screens\settings_screen.dart:74:15 - prefer_const_constructors
+
