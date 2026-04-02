@@ -97,8 +97,11 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           appBar: _buildAppBar(provider),
           body: Column(
             children: [
+              // Backend mode indicator
+              _buildBackendBanner(provider),
+
               // Model status bar
-              if (!provider.isModelLoaded) _buildNoModelBanner(context),
+              if (!provider.isModelLoaded) _buildNoModelBanner(context, provider),
 
               // Error bar
               if (provider.errorMessage != null)
@@ -145,19 +148,23 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: provider.isModelLoaded
-                      ? AppTheme.accent
+                      ? (provider.backend == LlmBackend.api
+                          ? AppTheme.secondary
+                          : AppTheme.accent)
                       : AppTheme.textMuted,
                 ),
               ),
               const SizedBox(width: 5),
-              Text(
-                provider.isModelLoaded
-                    ? (provider.selectedModel?.name ?? 'Model Loaded')
-                    : 'No model loaded',
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: AppTheme.textSecondary),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              Expanded(
+                child: Text(
+                  provider.isModelLoaded
+                      ? provider.activeBackendName
+                      : 'No model loaded',
+                  style: GoogleFonts.inter(
+                      fontSize: 11, color: AppTheme.textSecondary),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -182,12 +189,81 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildNoModelBanner(BuildContext context) {
+  Widget _buildBackendBanner(AppProvider provider) {
+    final isApi = provider.backend == LlmBackend.api;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: isApi
+              ? [
+                  AppTheme.secondary.withValues(alpha: 0.12),
+                  AppTheme.primary.withValues(alpha: 0.08)
+                ]
+              : [
+                  AppTheme.accent.withValues(alpha: 0.08),
+                  AppTheme.bgDark,
+                ],
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isApi ? Icons.cloud_outlined : Icons.smartphone_outlined,
+            color: isApi ? AppTheme.secondary : AppTheme.accent,
+            size: 14,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            isApi ? 'Cloud API Mode' : 'Offline Local Mode',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: isApi ? AppTheme.secondary : AppTheme.accent,
+            ),
+          ),
+          const Spacer(),
+          GestureDetector(
+            onTap: () {
+              provider.setBackend(
+                isApi ? LlmBackend.local : LlmBackend.api,
+              );
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: isApi
+                      ? AppTheme.secondary.withValues(alpha: 0.4)
+                      : AppTheme.accent.withValues(alpha: 0.4),
+                ),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                'Switch to ${isApi ? "Local" : "API"}',
+                style: GoogleFonts.inter(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w500,
+                  color: isApi ? AppTheme.secondary : AppTheme.accent,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoModelBanner(BuildContext context, AppProvider provider) {
+    final isApi = provider.backend == LlmBackend.api;
     return GestureDetector(
       onTap: () {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Go to the Models tab to load a GGUF model!'),
+          SnackBar(
+            content: Text(isApi
+                ? 'Go to Settings to configure your API key!'
+                : 'Go to the Models tab to load a GGUF model!'),
             backgroundColor: AppTheme.warning,
             behavior: SnackBarBehavior.floating,
           ),
@@ -202,10 +278,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             const Icon(Icons.warning_amber_rounded,
                 color: AppTheme.warning, size: 16),
             const SizedBox(width: 8),
-            Text(
-              'No model loaded — tap Models tab to add a GGUF file',
-              style: GoogleFonts.inter(
-                  fontSize: 12, color: AppTheme.warning),
+            Expanded(
+              child: Text(
+                isApi
+                    ? 'API not configured — go to Settings to add your key'
+                    : 'No model loaded — tap Models tab to add a GGUF file',
+                style: GoogleFonts.inter(
+                    fontSize: 12, color: AppTheme.warning),
+              ),
             ),
           ],
         ),
@@ -236,6 +316,7 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget _buildEmptyState(AppProvider provider) {
+    final isApi = provider.backend == LlmBackend.api;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -248,24 +329,31 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               height: 80,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: AppTheme.primaryGradient,
+                gradient: isApi
+                    ? const LinearGradient(
+                        colors: [AppTheme.secondary, AppTheme.primary],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      )
+                    : AppTheme.primaryGradient,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.primary.withValues(alpha: 0.4),
+                    color: (isApi ? AppTheme.secondary : AppTheme.primary)
+                        .withValues(alpha: 0.4),
                     blurRadius: 30,
                     spreadRadius: 5,
                   ),
                 ],
               ),
-              child: const Icon(
-                Icons.auto_awesome_rounded,
+              child: Icon(
+                isApi ? Icons.cloud_rounded : Icons.auto_awesome_rounded,
                 color: Colors.white,
                 size: 36,
               ),
             ),
             const SizedBox(height: 24),
             Text(
-              'Local AI Assistant',
+              isApi ? 'Cloud AI Assistant' : 'Local AI Assistant',
               style: GoogleFonts.outfit(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -274,7 +362,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             ),
             const SizedBox(height: 8),
             Text(
-              '100% Offline • Privacy First\nPowered by Llama.cpp on-device',
+              isApi
+                  ? 'Powered by ${provider.currentApiProvider.label}\nModel: ${provider.apiModel}'
+                  : '100% Offline • Privacy First\nPowered by Llama.cpp on-device',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 14,
@@ -417,7 +507,9 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                   decoration: InputDecoration(
                     hintText: provider.isModelLoaded
                         ? 'Ask anything...'
-                        : 'Load a model first...',
+                        : (provider.backend == LlmBackend.api
+                            ? 'Configure API key first...'
+                            : 'Load a model first...'),
                     hintStyle: GoogleFonts.inter(
                         color: AppTheme.textMuted, fontSize: 14),
                     border: InputBorder.none,
@@ -457,7 +549,14 @@ class _ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
                         height: 46,
                         decoration: BoxDecoration(
                           gradient: _hasText && provider.isModelLoaded
-                              ? AppTheme.primaryGradient
+                              ? (provider.backend == LlmBackend.api
+                                  ? const LinearGradient(
+                                      colors: [
+                                        AppTheme.secondary,
+                                        AppTheme.primary,
+                                      ],
+                                    )
+                                  : AppTheme.primaryGradient)
                               : null,
                           color: _hasText && provider.isModelLoaded
                               ? null

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/constants/app_constants.dart';
+import 'api_settings_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -44,8 +45,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
           body: ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // Model Status Header
-              const _SectionHeader(title: 'Active Model', icon: Icons.memory_rounded),
+              // ─── Backend Mode Toggle ─────────────────────────────────
+              const _SectionHeader(
+                  title: 'LLM Backend', icon: Icons.swap_horiz_rounded),
+              _buildBackendToggle(provider),
+              const SizedBox(height: 24),
+
+              // ─── API Configuration ───────────────────────────────────
+              const _SectionHeader(
+                  title: 'Cloud API', icon: Icons.cloud_outlined),
+              _buildApiCard(provider),
+              const SizedBox(height: 24),
+
+              // ─── Active Model Status ─────────────────────────────────
+              const _SectionHeader(
+                  title: 'Active Model', icon: Icons.memory_rounded),
               _buildModelStatus(provider),
               const SizedBox(height: 24),
 
@@ -56,12 +70,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildInferenceSettings(provider),
               const SizedBox(height: 24),
 
-              // Prompt Template
-              const _SectionHeader(
-                  title: 'Prompt Template',
-                  icon: Icons.article_outlined),
-              _buildTemplateSelector(provider),
-              const SizedBox(height: 24),
+              // Prompt Template (only for local)
+              if (provider.backend == LlmBackend.local) ...[
+                const _SectionHeader(
+                    title: 'Prompt Template',
+                    icon: Icons.article_outlined),
+                _buildTemplateSelector(provider),
+                const SizedBox(height: 24),
+              ],
 
               // System Prompt
               const _SectionHeader(
@@ -70,11 +86,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildSystemPrompt(provider),
               const SizedBox(height: 24),
 
-              // Hardware Settings
-              const _SectionHeader(
-                  title: 'Hardware', icon: Icons.developer_board_rounded),
-              _buildHardwareSettings(provider),
-              const SizedBox(height: 40),
+              // Hardware Settings (only for local)
+              if (provider.backend == LlmBackend.local) ...[
+                const _SectionHeader(
+                    title: 'Hardware', icon: Icons.developer_board_rounded),
+                _buildHardwareSettings(provider),
+                const SizedBox(height: 40),
+              ],
 
               // Reset button
               OutlinedButton.icon(
@@ -98,6 +116,140 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ─── Backend Toggle ──────────────────────────────────────────────────────
+
+  Widget _buildBackendToggle(AppProvider provider) {
+    return _Card(
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: _BackendOption(
+                  title: 'Local (Offline)',
+                  subtitle: 'Runs on-device via Llama.cpp',
+                  icon: Icons.smartphone_outlined,
+                  isSelected: provider.backend == LlmBackend.local,
+                  color: AppTheme.accent,
+                  onTap: () => provider.setBackend(LlmBackend.local),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _BackendOption(
+                  title: 'Cloud API',
+                  subtitle: 'OpenAI, Groq, etc.',
+                  icon: Icons.cloud_outlined,
+                  isSelected: provider.backend == LlmBackend.api,
+                  color: AppTheme.secondary,
+                  onTap: () => provider.setBackend(LlmBackend.api),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.bgElevated,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  provider.backend == LlmBackend.api
+                      ? Icons.info_outline_rounded
+                      : Icons.lock_outline_rounded,
+                  size: 14,
+                  color: AppTheme.textMuted,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    provider.backend == LlmBackend.api
+                        ? 'Cloud mode sends data to the API provider'
+                        : 'All data stays on your device — 100% private',
+                    style: GoogleFonts.inter(
+                        fontSize: 11, color: AppTheme.textMuted),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── API Card ────────────────────────────────────────────────────────────
+
+  Widget _buildApiCard(AppProvider provider) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ApiSettingsScreen()),
+        );
+      },
+      child: _Card(
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: (provider.isApiConfigured
+                        ? AppTheme.secondary
+                        : AppTheme.textMuted)
+                    .withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                provider.isApiConfigured
+                    ? Icons.cloud_done_outlined
+                    : Icons.cloud_off_outlined,
+                color: provider.isApiConfigured
+                    ? AppTheme.secondary
+                    : AppTheme.textMuted,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    provider.isApiConfigured
+                        ? '${provider.currentApiProvider.label} — ${provider.apiModel}'
+                        : 'Configure API',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    provider.isApiConfigured
+                        ? 'Tap to change provider or model'
+                        : 'Tap to add your API key',
+                    style: GoogleFonts.inter(
+                        fontSize: 12, color: AppTheme.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.arrow_forward_ios_rounded,
+                color: AppTheme.textMuted, size: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Model Status ────────────────────────────────────────────────────────
+
   Widget _buildModelStatus(AppProvider provider) {
     return _Card(
       child: Row(
@@ -105,7 +257,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (provider.isModelLoaded ? AppTheme.accent : AppTheme.textMuted)
+              color: (provider.isModelLoaded
+                      ? (provider.backend == LlmBackend.api
+                          ? AppTheme.secondary
+                          : AppTheme.accent)
+                      : AppTheme.textMuted)
                   .withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
@@ -114,7 +270,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ? Icons.check_circle_rounded
                   : Icons.error_outline_rounded,
               color: provider.isModelLoaded
-                  ? AppTheme.accent
+                  ? (provider.backend == LlmBackend.api
+                      ? AppTheme.secondary
+                      : AppTheme.accent)
                   : AppTheme.textMuted,
               size: 22,
             ),
@@ -126,8 +284,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Text(
                   provider.isModelLoaded
-                      ? provider.selectedModel?.name ?? 'Unknown'
-                      : 'No model loaded',
+                      ? provider.activeBackendName
+                      : 'No model active',
                   style: GoogleFonts.outfit(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -135,12 +293,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (provider.isModelLoaded)
-                  Text(
-                    provider.selectedModel?.sizeString ?? '',
-                    style: GoogleFonts.inter(
-                        fontSize: 12, color: AppTheme.textSecondary),
-                  ),
+                Text(
+                  provider.backend == LlmBackend.api
+                      ? 'Cloud API'
+                      : (provider.selectedModel?.sizeString ?? 'Local Llama.cpp'),
+                  style: GoogleFonts.inter(
+                      fontSize: 12, color: AppTheme.textSecondary),
+                ),
               ],
             ),
           ),
@@ -157,8 +316,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             label: 'Max Tokens',
             value: provider.maxTokens.toDouble(),
             min: 64,
-            max: 2048,
-            divisions: 31,
+            max: 4096,
+            divisions: 63,
             displayValue: provider.maxTokens.toString(),
             onChanged: (v) => provider.updateSettings(maxTokens: v.toInt()),
           ),
@@ -185,17 +344,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (v) => provider.updateSettings(topP: v),
             tooltip: 'Nucleus sampling threshold',
           ),
-          const Divider(color: AppTheme.divider, height: 24),
-          _SliderRow(
-            label: 'Repeat Penalty',
-            value: provider.repeatPenalty,
-            min: 1.0,
-            max: 2.0,
-            divisions: 20,
-            displayValue: provider.repeatPenalty.toStringAsFixed(2),
-            onChanged: (v) => provider.updateSettings(repeatPenalty: v),
-            tooltip: 'Penalizes repetition (1.0 = disabled)',
-          ),
+          if (provider.backend == LlmBackend.local) ...[
+            const Divider(color: AppTheme.divider, height: 24),
+            _SliderRow(
+              label: 'Repeat Penalty',
+              value: provider.repeatPenalty,
+              min: 1.0,
+              max: 2.0,
+              divisions: 20,
+              displayValue: provider.repeatPenalty.toStringAsFixed(2),
+              onChanged: (v) => provider.updateSettings(repeatPenalty: v),
+              tooltip: 'Penalizes repetition (1.0 = disabled)',
+            ),
+          ],
         ],
       ),
     );
@@ -379,6 +540,71 @@ class _SettingsScreenState extends State<SettingsScreen> {
         content: Text('Settings reset to defaults'),
         behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 2),
+      ),
+    );
+  }
+}
+
+// ─── Reusable Widgets ──────────────────────────────────────────────────────
+
+class _BackendOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _BackendOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? color.withValues(alpha: 0.12)
+              : AppTheme.bgElevated,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isSelected
+                ? color.withValues(alpha: 0.5)
+                : AppTheme.divider,
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, color: isSelected ? color : AppTheme.textMuted, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: isSelected ? color : AppTheme.textSecondary,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: GoogleFonts.inter(
+                fontSize: 10,
+                color: AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

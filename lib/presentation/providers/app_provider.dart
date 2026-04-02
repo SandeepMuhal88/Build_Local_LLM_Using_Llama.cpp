@@ -6,11 +6,16 @@ import '../../data/models/chat_session.dart';
 import '../../data/models/model_info.dart';
 import '../../data/services/llm_service.dart';
 import '../../data/services/model_service.dart';
+import '../../data/services/api_llm_service.dart';
 import '../../core/constants/app_constants.dart';
+
+/// Backend mode for the LLM engine
+enum LlmBackend { local, api }
 
 class AppProvider extends ChangeNotifier {
   final LlmService _llmService = LlmService();
   final ModelService _modelService = ModelService();
+  final ApiLlmService _apiService = ApiLlmService();
 
   // State
   List<ChatSession> _sessions = [];
@@ -21,6 +26,9 @@ class AppProvider extends ChangeNotifier {
   bool _isGenerating = false;
   String? _errorMessage;
   String _streamingResponse = '';
+
+  // Backend mode
+  LlmBackend _backend = LlmBackend.local;
 
   // Settings
   String _systemPrompt = AppConstants.defaultSystemPrompt;
@@ -33,6 +41,12 @@ class AppProvider extends ChangeNotifier {
   int _nThreads = AppConstants.defaultNThreads;
   String _selectedTemplate = 'ChatML';
 
+  // API settings
+  String _apiProvider = ApiProvider.openAI.name;
+  String _apiKey = '';
+  String _apiBaseUrl = ApiProvider.openAI.defaultBaseUrl;
+  String _apiModel = 'gpt-4o-mini';
+
   // Getters
   List<ChatSession> get sessions => _sessions;
   ChatSession? get currentSession => _currentSession;
@@ -43,7 +57,12 @@ class AppProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String get streamingResponse => _streamingResponse;
   LlmStatus get llmStatus => _llmService.status;
-  bool get isModelLoaded => _llmService.isModelLoaded;
+  bool get isModelLoaded => _backend == LlmBackend.local
+      ? _llmService.isModelLoaded
+      : _apiService.isConfigured;
+
+  LlmBackend get backend => _backend;
+  ApiLlmService get apiService => _apiService;
 
   String get systemPrompt => _systemPrompt;
   int get maxTokens => _maxTokens;
@@ -55,11 +74,52 @@ class AppProvider extends ChangeNotifier {
   int get nThreads => _nThreads;
   String get selectedTemplate => _selectedTemplate;
 
+  // API getters
+  String get apiProviderName => _apiProvider;
+  String get apiKey => _apiKey;
+  String get apiBaseUrl => _apiBaseUrl;
+  String get apiModel => _apiModel;
+  ApiProvider get currentApiProvider => ApiProvider.values.firstWhere(
+        (p) => p.name == _apiProvider,
+        orElse: () => ApiProvider.openAI,
+      );
+  bool get isApiConfigured => _apiService.isConfigured;
+
+  /// The display name for the active backend
+  String get activeBackendName {
+    if (_backend == LlmBackend.local) {
+      return _selectedModel?.name ?? 'Local (no model)';
+    } else {
+      return '${currentApiProvider.label}: $_apiModel';
+    }
+  }
+
   Future<void> init() async {
     await _modelService.init();
     await _loadSettings();
     _loadModels();
     _loadSessions();
+
+    // Restore API config if saved
+    if (_apiKey.isNotEmpty) {
+      _apiService.configure(ApiConfig(
+        provider: currentApiProvider,
+        apiKey: _apiKey,
+        baseUrl: _apiBaseUrl,
+        model: _apiModel,
+      ));
+    }
+
+    notifyListeners();
+  }
+
+  // ── Backend Switching ──────────────────────────────────────────────────────
+
+  Future<void> setBackend(LlmBackend newBackend) async {
+    _backend = newBackend;
+    _clearError();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('llm_backend', newBackend.name);
     notifyListeners();
   }
 
@@ -95,6 +155,7 @@ class AppProvider extends ChangeNotifier {
       if (success) {
         _selectedModel = model;
         _selectedTemplate = model.templateName;
+        _backend = LlmBackend.local;
         await _saveSettings();
         _clearError();
       } else {
@@ -116,6 +177,50 @@ class AppProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ── API Configuration ─────────────────────────────────────────────────────
+
+  Future<void> configureApi({
+    required ApiProvider provider,
+    required String apiKey,
+    String? baseUrl,
+    required String model,
+  }) async {
+    _apiProvider = provider.name;
+    _apiKey = apiKey;
+    _apiBaseUrl = baseUrl ?? provider.defaultBaseUrl;
+    _apiModel = model;
+
+    final config = ApiConfig(
+      provider: provider,
+      apiKey: apiKey,
+      baseUrl: _apiBaseUrl,
+      model: model,
+    );
+    _apiService.configure(config);
+    _backend = LlmBackend.api;
+    _clearError();
+
+    await _saveSettings();
+    notifyListeners();
+  }
+
+  Future<bool> testApiConnection() async {
+    _setLoading(true);
+    _clearError();
+    notifyListeners();
+
+    try {
+      final success = await _apiService.testConnection();
+      if (!success) {
+        _setError(_apiService.errorMessage ?? 'Connection failed');
+      }
+      return success;
+    } finally {
+      _setLoading(false);
+      notifyListeners();
+    }
+  }
+
   // ── Chat Sessions ─────────────────────────────────────────────────────────
 
   void _loadSessions() {
@@ -125,7 +230,10 @@ class AppProvider extends ChangeNotifier {
   }
 
   Future<void> createNewSession() async {
-    final session = ChatSession(modelName: _selectedModel?.name);
+    final modelName = _backend == LlmBackend.local
+        ? _selectedModel?.name
+        : '$_apiModel (API)';
+    final session = ChatSession(modelName: modelName);
     final box = Hive.box<ChatSession>(AppConstants.chatBoxName);
     await box.put(session.id, session);
     _sessions.insert(0, session);
@@ -153,8 +261,13 @@ class AppProvider extends ChangeNotifier {
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
-    if (!_llmService.isModelLoaded) {
+
+    if (_backend == LlmBackend.local && !_llmService.isModelLoaded) {
       _setError('Please load a model first!');
+      return;
+    }
+    if (_backend == LlmBackend.api && !_apiService.isConfigured) {
+      _setError('Please configure your API key first!');
       return;
     }
     if (_isGenerating) return;
@@ -177,27 +290,14 @@ class AppProvider extends ChangeNotifier {
     _clearError();
     notifyListeners();
 
-    // Build prompt
-    final prompt = _llmService.buildPrompt(
-      userMessage: text.trim(),
-      systemPrompt: _systemPrompt,
-      templateName: _selectedTemplate,
-    );
-
     final buffer = StringBuffer();
     final stopwatch = Stopwatch()..start();
 
     try {
-      await for (final token in _llmService.generateStream(
-        prompt: prompt,
-        maxTokens: _maxTokens,
-        temperature: _temperature,
-        topP: _topP,
-        repeatPenalty: _repeatPenalty,
-      )) {
-        buffer.write(token);
-        _streamingResponse = buffer.toString();
-        notifyListeners();
+      if (_backend == LlmBackend.local) {
+        await _generateLocal(text, buffer);
+      } else {
+        await _generateApi(text, buffer);
       }
     } finally {
       stopwatch.stop();
@@ -216,8 +316,69 @@ class AppProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> _generateLocal(String text, StringBuffer buffer) async {
+    final prompt = _llmService.buildPrompt(
+      userMessage: text.trim(),
+      systemPrompt: _systemPrompt,
+      templateName: _selectedTemplate,
+    );
+
+    await for (final token in _llmService.generateStream(
+      prompt: prompt,
+      maxTokens: _maxTokens,
+      temperature: _temperature,
+      topP: _topP,
+      repeatPenalty: _repeatPenalty,
+    )) {
+      buffer.write(token);
+      _streamingResponse = buffer.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> _generateApi(String text, StringBuffer buffer) async {
+    // Build conversation messages with context
+    final messages = <Map<String, String>>[];
+
+    // System message
+    messages.add({
+      'role': 'system',
+      'content': _systemPrompt,
+    });
+
+    // Include conversation history (last N messages for context)
+    final history = _currentSession?.messages ?? [];
+    const maxHistoryMessages = 20;
+    final startIdx = history.length > maxHistoryMessages
+        ? history.length - maxHistoryMessages
+        : 0;
+
+    for (int i = startIdx; i < history.length; i++) {
+      final msg = history[i];
+      messages.add({
+        'role': msg.role == MessageRole.user ? 'user' : 'assistant',
+        'content': msg.content,
+      });
+    }
+
+    await for (final token in _apiService.generateStream(
+      messages: messages,
+      maxTokens: _maxTokens,
+      temperature: _temperature,
+      topP: _topP,
+    )) {
+      buffer.write(token);
+      _streamingResponse = buffer.toString();
+      notifyListeners();
+    }
+  }
+
   Future<void> stopGeneration() async {
-    await _llmService.stopGeneration();
+    if (_backend == LlmBackend.local) {
+      await _llmService.stopGeneration();
+    } else {
+      _apiService.stopGeneration();
+    }
     _isGenerating = false;
     notifyListeners();
   }
@@ -251,6 +412,19 @@ class AppProvider extends ChangeNotifier {
         AppConstants.defaultNThreads;
     _selectedTemplate = prefs.getString(AppConstants.keySelectedTemplate) ??
         'ChatML';
+
+    // Load API settings
+    _apiProvider = prefs.getString('api_provider') ?? ApiProvider.openAI.name;
+    _apiKey = prefs.getString('api_key') ?? '';
+    _apiBaseUrl = prefs.getString('api_base_url') ?? ApiProvider.openAI.defaultBaseUrl;
+    _apiModel = prefs.getString('api_model') ?? 'gpt-4o-mini';
+
+    // Load backend mode
+    final backendStr = prefs.getString('llm_backend') ?? 'local';
+    _backend = LlmBackend.values.firstWhere(
+      (b) => b.name == backendStr,
+      orElse: () => LlmBackend.local,
+    );
   }
 
   Future<void> _saveSettings() async {
@@ -264,6 +438,13 @@ class AppProvider extends ChangeNotifier {
     await prefs.setInt(AppConstants.keyNGpuLayers, _nGpuLayers);
     await prefs.setInt(AppConstants.keyNThreads, _nThreads);
     await prefs.setString(AppConstants.keySelectedTemplate, _selectedTemplate);
+
+    // Save API settings
+    await prefs.setString('api_provider', _apiProvider);
+    await prefs.setString('api_key', _apiKey);
+    await prefs.setString('api_base_url', _apiBaseUrl);
+    await prefs.setString('api_model', _apiModel);
+    await prefs.setString('llm_backend', _backend.name);
   }
 
   Future<void> updateSettings({
@@ -309,6 +490,7 @@ class AppProvider extends ChangeNotifier {
   @override
   Future<void> dispose() async {
     await _llmService.dispose();
+    _apiService.dispose();
     super.dispose();
   }
 }
